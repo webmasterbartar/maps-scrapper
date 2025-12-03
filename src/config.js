@@ -6,8 +6,8 @@ module.exports = {
     CONCURRENCY_WORKERS: 5,
 
     // Navigation & Timeout settings
-    NAV_TIMEOUT: 20000, // کاهش برای جلوگیری از گیر کردن
-    SELECTOR_TIMEOUT: 3000, // کاهش برای سریع‌تر گذشتن
+    NAV_TIMEOUT: 30000, // افزایش برای Google Maps
+    SELECTOR_TIMEOUT: 10000, // افزایش برای پیدا کردن feed
     // When false we launch Chrome with a visible window to watch the scraper
     // Headless mode is FASTER and MORE RELIABLE - keep it true for production
     HEADLESS: true, // برای سرور باید true باشد

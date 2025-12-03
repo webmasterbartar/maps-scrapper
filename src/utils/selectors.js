@@ -6,7 +6,11 @@ module.exports = {
         RESULTS_CONTAINER: [
             'div[role="feed"]',
             'div[aria-label*="Results"]',
-            'div[aria-label*="نتایج"]'
+            'div[aria-label*="نتایج"]',
+            'div[jsaction*="pane.resultContainer"]',
+            '[role="main"] div[role="feed"]',
+            'div[data-value="Directions"]', // Fallback
+            'div.m6QErb.DxyBCb.XiKgde' // Alternative container
         ],
         // Multiple selectors to catch all place links
         PLACE_LINK: [
