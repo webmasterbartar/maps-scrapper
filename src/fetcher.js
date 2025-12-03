@@ -143,10 +143,27 @@ async function waitForAnySelector(page, selectorList, timeout) {
 
     while (Date.now() - start < timeout) {
         for (const sel of selectorList) {
-            const exists = await page.$(sel);
-            if (exists) return sel;
+            try {
+                // Try to find element
+                const exists = await page.$(sel);
+                if (exists) {
+                    // Double check that element is actually visible and has content
+                    const isVisible = await page.evaluate((selector) => {
+                        const el = document.querySelector(selector);
+                        if (!el) return false;
+                        const style = window.getComputedStyle(el);
+                        return style.display !== 'none' && 
+                               style.visibility !== 'hidden' && 
+                               el.offsetParent !== null &&
+                               el.scrollHeight > 0;
+                    }, sel);
+                    if (isVisible) return sel;
+                }
+            } catch (e) {
+                // Continue with next selector
+            }
         }
-        await page.waitForTimeout(150);
+        await page.waitForTimeout(200);
     }
 
     return null;
