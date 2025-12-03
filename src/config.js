@@ -10,7 +10,7 @@ module.exports = {
     SELECTOR_TIMEOUT: 3000, // کاهش برای سریع‌تر گذشتن
     // When false we launch Chrome with a visible window to watch the scraper
     // Headless mode is FASTER and MORE RELIABLE - keep it true for production
-    HEADLESS: false, // خاموش برای مشاهده UI و دیباگ
+    HEADLESS: true, // برای سرور باید true باشد
     
     // Scroll settings
     // How long to wait between scroll steps (ms) – کمتر = سریع‌تر
