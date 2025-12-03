@@ -30,8 +30,86 @@ async function fetchLinksForQuery(browser, query) {
             config.RETRY_DELAY_MAX
         );
 
+        // Handle Google Consent page
+        const currentUrl = page.url();
+        if (currentUrl.includes('consent.google.com')) {
+            logger.info('Google consent page detected, trying to accept...');
+            try {
+                // Try to find and click accept button (multiple possible selectors)
+                const acceptSelectors = [
+                    'button:has-text("Accept all")',
+                    'button:has-text("Alle akzeptieren")',
+                    'button:has-text("قبول کردن")',
+                    'button[aria-label*="Accept"]',
+                    'button[aria-label*="Akzeptieren"]',
+                    'form[action*="consent"] button[type="submit"]',
+                    'button#L2AGLb', // Common Google consent button ID
+                    'button[data-ved]',
+                    'div[role="dialog"] button:last-child'
+                ];
+                
+                let accepted = false;
+                for (const selector of acceptSelectors) {
+                    try {
+                        const button = await page.$(selector);
+                        if (button) {
+                            await button.click();
+                            await page.waitForTimeout(2000);
+                            accepted = true;
+                            logger.info(`Clicked consent button with selector: ${selector}`);
+                            break;
+                        }
+                    } catch (e) {
+                        // Continue with next selector
+                    }
+                }
+                
+                // If button click didn't work, try JavaScript click
+                if (!accepted) {
+                    const clicked = await page.evaluate(() => {
+                        const buttons = document.querySelectorAll('button, [role="button"]');
+                        for (const btn of buttons) {
+                            const text = btn.innerText || btn.textContent || '';
+                            if (text.includes('Accept') || text.includes('Akzeptieren') || text.includes('قبول') || text.includes('Alle')) {
+                                btn.click();
+                                return true;
+                            }
+                        }
+                        // Try form submit
+                        const form = document.querySelector('form[action*="consent"]');
+                        if (form) {
+                            form.submit();
+                            return true;
+                        }
+                        return false;
+                    });
+                    
+                    if (clicked) {
+                        await page.waitForTimeout(3000);
+                        logger.info('Clicked consent using JavaScript');
+                    } else {
+                        logger.warn('Could not find consent button, trying to navigate directly...');
+                        // Extract continue URL and navigate directly
+                        const continueUrl = await page.evaluate(() => {
+                            const urlParams = new URLSearchParams(window.location.search);
+                            return urlParams.get('continue');
+                        });
+                        if (continueUrl) {
+                            await page.goto(decodeURIComponent(continueUrl), { waitUntil: 'networkidle2', timeout: config.NAV_TIMEOUT });
+                            logger.info('Navigated directly to continue URL');
+                        }
+                    }
+                }
+                
+                // Wait for redirect to complete
+                await page.waitForTimeout(3000);
+            } catch (e) {
+                logger.warn(`Error handling consent page: ${e.message}`);
+            }
+        }
+
         // Wait a bit for page to fully load
-        await page.waitForTimeout(5000);
+        await page.waitForTimeout(3000);
 
         // Try to wait for any common Google Maps elements first
         try {
