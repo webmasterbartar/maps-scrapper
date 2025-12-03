@@ -41,14 +41,36 @@ async function fetchLinksForQuery(browser, query) {
 
         // Debug: Check what's on the page
         const pageContent = await page.evaluate(() => {
+            const allDivs = Array.from(document.querySelectorAll('div')).slice(0, 50);
+            const divsWithRole = allDivs.filter(d => d.getAttribute('role')).map(d => ({
+                role: d.getAttribute('role'),
+                ariaLabel: d.getAttribute('aria-label'),
+                className: d.className.substring(0, 50)
+            }));
+            
             return {
                 title: document.title,
+                url: window.location.href,
                 hasFeed: !!document.querySelector('div[role="feed"]'),
                 hasMain: !!document.querySelector('div[role="main"]'),
-                bodyText: document.body.innerText.substring(0, 200)
+                feedCount: document.querySelectorAll('div[role="feed"]').length,
+                placeLinksCount: document.querySelectorAll('a[href*="/maps/place/"]').length,
+                bodyText: document.body.innerText.substring(0, 300),
+                divsWithRole: divsWithRole.slice(0, 10)
             };
         }).catch(() => ({}));
-        logger.debug(`Page content check: ${JSON.stringify(pageContent)}`);
+        logger.warn(`Page content check: ${JSON.stringify(pageContent, null, 2)}`);
+        
+        // Take screenshot for debugging (only if feed not found)
+        if (!pageContent.hasFeed && pageContent.placeLinksCount === 0) {
+            try {
+                const screenshotPath = `./output/debug_${Date.now()}_${query.replace(/\s+/g, '_')}.png`;
+                await page.screenshot({ path: screenshotPath, fullPage: true });
+                logger.warn(`Screenshot saved to ${screenshotPath} for debugging`);
+            } catch (e) {
+                logger.debug(`Could not take screenshot: ${e.message}`);
+            }
+        }
 
         // Wait for feed or alternative containers
         let feedSelector = await waitForAnySelector(
