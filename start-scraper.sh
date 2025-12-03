@@ -16,7 +16,8 @@ echo ""
 
 # Run with nohup (runs in background, survives SSH disconnect)
 # Redirect both stdout and stderr to log file
-nohup node src/index.js --keywords="کافه" > "${LOG_FILE}" 2>&1 &
+# Uses furniture keywords from config with all Iran provinces
+nohup node src/index.js > "${LOG_FILE}" 2>&1 &
 
 # Get the process ID
 PID=$!
