@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Output files
+output/
+*.csv
+*.json
+!package.json
+
+# Logs
+*.log
+combined.log
+error.log
+
+# Test files
+check-*.js
+monitor-*.js
+test_*.js
+
+# OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Environment variables
+.env
+.env.local
+
+# Temporary files
+temp/
+tmp/
+*.tmp
+
