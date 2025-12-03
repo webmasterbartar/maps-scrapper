@@ -30,6 +30,9 @@ async function fetchLinksForQuery(browser, query) {
             config.RETRY_DELAY_MAX
         );
 
+        // Wait a bit for page to fully load
+        await page.waitForTimeout(2000);
+
         // Wait for feed or alternative containers
         let feedSelector = await waitForAnySelector(
             page,
@@ -42,6 +45,9 @@ async function fetchLinksForQuery(browser, query) {
             const fallbackUrl = `https://www.google.com/maps?q=${encodeURIComponent(query)}`;
             logger.warn(`Feed not found for ${query}, trying fallback URL`, { fallbackUrl });
             await page.goto(fallbackUrl, { waitUntil: 'networkidle2', timeout: config.NAV_TIMEOUT });
+            
+            // Wait a bit for page to fully load
+            await page.waitForTimeout(2000);
 
             feedSelector = await waitForAnySelector(
                 page,
@@ -50,8 +56,19 @@ async function fetchLinksForQuery(browser, query) {
             );
 
             if (!feedSelector) {
-                logger.warn(`No feed found for ${query} after fallback.`);
-                return [];
+                logger.warn(`No feed found for ${query} after fallback. Trying one more time...`);
+                // Last attempt: wait a bit more and try again
+                await page.waitForTimeout(3000);
+                feedSelector = await waitForAnySelector(
+                    page,
+                    selectors.SEARCH.RESULTS_CONTAINER,
+                    config.SELECTOR_TIMEOUT
+                );
+                
+                if (!feedSelector) {
+                    logger.warn(`No feed found for ${query} after all attempts.`);
+                    return [];
+                }
             }
         }
 
