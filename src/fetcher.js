@@ -31,7 +31,24 @@ async function fetchLinksForQuery(browser, query) {
         );
 
         // Wait a bit for page to fully load
-        await page.waitForTimeout(2000);
+        await page.waitForTimeout(5000);
+
+        // Try to wait for any common Google Maps elements first
+        try {
+            await page.waitForSelector('div[role="main"]', { timeout: 10000 }).catch(() => {});
+            await page.waitForTimeout(2000);
+        } catch (e) {}
+
+        // Debug: Check what's on the page
+        const pageContent = await page.evaluate(() => {
+            return {
+                title: document.title,
+                hasFeed: !!document.querySelector('div[role="feed"]'),
+                hasMain: !!document.querySelector('div[role="main"]'),
+                bodyText: document.body.innerText.substring(0, 200)
+            };
+        }).catch(() => ({}));
+        logger.debug(`Page content check: ${JSON.stringify(pageContent)}`);
 
         // Wait for feed or alternative containers
         let feedSelector = await waitForAnySelector(
@@ -39,6 +56,61 @@ async function fetchLinksForQuery(browser, query) {
             selectors.SEARCH.RESULTS_CONTAINER,
             config.SELECTOR_TIMEOUT
         );
+        
+        // If still not found, try comprehensive search
+        if (!feedSelector) {
+            logger.debug('Trying comprehensive feed search...');
+            const foundSelector = await page.evaluate(() => {
+                // Try multiple strategies
+                const strategies = [
+                    () => {
+                        const feed = document.querySelector('div[role="feed"]');
+                        if (feed && feed.scrollHeight > 0) return 'div[role="feed"]';
+                    },
+                    () => {
+                        const feeds = document.querySelectorAll('div[aria-label*="Result"], div[aria-label*="نتایج"]');
+                        for (const feed of feeds) {
+                            if (feed.scrollHeight > 0 && feed.offsetParent !== null) {
+                                return 'div[aria-label*="Result"]';
+                            }
+                        }
+                    },
+                    () => {
+                        // Look for scrollable containers with links
+                        const containers = document.querySelectorAll('div[role="main"] > div, div[jsaction]');
+                        for (const container of containers) {
+                            const links = container.querySelectorAll('a[href*="/maps/place/"]');
+                            if (links.length > 0 && container.scrollHeight > 0) {
+                                return 'div[role="main"] > div';
+                            }
+                        }
+                    },
+                    () => {
+                        // Last resort: find any container with place links
+                        const allLinks = document.querySelectorAll('a[href*="/maps/place/"]');
+                        if (allLinks.length > 0) {
+                            const parent = allLinks[0].closest('div[role="feed"], div[aria-label*="Result"], div[aria-label*="نتایج"]');
+                            if (parent) return 'div[role="feed"]';
+                        }
+                    }
+                ];
+                
+                for (const strategy of strategies) {
+                    try {
+                        const result = strategy();
+                        if (result) return result;
+                    } catch (e) {}
+                }
+                return null;
+            }).catch(() => null);
+            
+            if (foundSelector) {
+                feedSelector = foundSelector;
+                logger.info(`Found feed using comprehensive search: ${feedSelector}`);
+            } else {
+                logger.warn('Could not find feed using any method. Page might be blocked or have different structure.');
+            }
+        }
 
         // Fallback: try q= URL if no feed detected
         if (!feedSelector) {
