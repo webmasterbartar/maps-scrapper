@@ -393,13 +393,35 @@ async function smartScrollFeed(page, selector) {
     logger.info(`Starting smartScrollFeed on selector: ${selector}`);
 
     while (loops < (config.MAX_SCROLL_LOOPS || 80)) {
-        // Scroll to bottom of the feed element using element.scrollTop.
-        // همچنین با border موقت دور فید، آن را در UI برجسته می‌کنیم (فقط برای دیباگ، بی‌ضرر است).
-        const currentHeight = await page.$eval(selector, el => {
-            el.scrollTop = el.scrollHeight;
+        // Scroll to bottom of the *real* scrollable feed container.
+        // اگر selector ورودی اشتباه باشد، این تابع سعی می‌کند کانتینر درست را خودش پیدا کند.
+        const currentHeight = await page.evaluate((sel) => {
+            function isScrollable(container) {
+                if (!container) return false;
+                const h = container.scrollHeight || 0;
+                const ch = container.clientHeight || 0;
+                return h > ch + 50; // اختلاف معنی‌دار بین محتوا و ارتفاع قابل‌مشاهده
+            }
+
+            // ۱) سعی با selector ورودی
+            let el = sel ? document.querySelector(sel) : null;
+
+            // ۲) اگر مناسب نبود، بین کانتینرهای شناخته‌شده بگرد
+            if (!isScrollable(el)) {
+                const candidates = Array.from(document.querySelectorAll(
+                    'div[role="feed"], .m6QErb.DxyBCb.XiKgde, .m6QErb.DxyBCb'
+                ));
+                el = candidates.find(isScrollable) || el;
+            }
+
+            // ۳) اگر باز هم چیزی نیست، تسلیم می‌شویم
+            if (!isScrollable(el)) return null;
+
+            // برای دیباگ: با outline قرمز مشخصش می‌کنیم
             el.style.outline = '2px solid #ff0000';
+            el.scrollTop = el.scrollHeight;
             return el.scrollHeight;
-        }).catch(() => null);
+        }, selector).catch(() => null);
 
         loops++;
 
@@ -412,7 +434,25 @@ async function smartScrollFeed(page, selector) {
         }
 
         // Re-check height after waiting for loader
-        const heightAfterWait = await page.$eval(selector, el => el.scrollHeight).catch(() => currentHeight);
+        const heightAfterWait = await page.evaluate((sel) => {
+            function isScrollable(container) {
+                if (!container) return false;
+                const h = container.scrollHeight || 0;
+                const ch = container.clientHeight || 0;
+                return h > ch + 50;
+            }
+
+            let el = sel ? document.querySelector(sel) : null;
+            if (!isScrollable(el)) {
+                const candidates = Array.from(document.querySelectorAll(
+                    'div[role="feed"], .m6QErb.DxyBCb.XiKgde, .m6QErb.DxyBCb'
+                ));
+                el = candidates.find(isScrollable) || el;
+            }
+
+            if (!el) return 0;
+            return el.scrollHeight || 0;
+        }, selector).catch(() => currentHeight || 0);
         
         if (heightAfterWait === lastHeight) {
             consecutiveNoChange++;
