@@ -403,6 +403,31 @@ async function smartScrollFeed(page, selector) {
                 return h > ch + 50; // اختلاف معنی‌دار بین محتوا و ارتفاع قابل‌مشاهده
             }
 
+            // پیدا کردن بهترین کانتینر اسکرول‌پذیر که بیشترین لینک place را دارد
+            function findBestFeedContainer() {
+                const allDivs = Array.from(document.querySelectorAll('div'));
+                let best = null;
+                let bestScore = 0;
+
+                for (const div of allDivs) {
+                    // فقط divهایی که واقعاً اسکرول‌پذیرند
+                    if (!isScrollable(div)) continue;
+
+                    const links = div.querySelectorAll('a[href*="/maps/place/"]');
+                    const score = links.length;
+                    if (score > bestScore) {
+                        bestScore = score;
+                        best = div;
+                    }
+                }
+
+                // حداقل چند لینک لازم است تا مطمئن شویم لیست نتایج است
+                if (best && bestScore >= 5) {
+                    return best;
+                }
+                return null;
+            }
+
             // ۱) سعی با selector ورودی
             let el = sel ? document.querySelector(sel) : null;
 
@@ -414,7 +439,11 @@ async function smartScrollFeed(page, selector) {
                 el = candidates.find(isScrollable) || el;
             }
 
-            // ۳) اگر باز هم چیزی نیست، تسلیم می‌شویم
+            // ۳) اگر هنوز مطمئن نیستیم، هوشمندانه‌ترین کانتینر را بر اساس تعداد لینک‌ها پیدا کن
+            if (!isScrollable(el)) {
+                el = findBestFeedContainer();
+            }
+
             if (!isScrollable(el)) return null;
 
             // برای دیباگ: با outline قرمز مشخصش می‌کنیم
@@ -442,12 +471,37 @@ async function smartScrollFeed(page, selector) {
                 return h > ch + 50;
             }
 
+            function findBestFeedContainer() {
+                const allDivs = Array.from(document.querySelectorAll('div'));
+                let best = null;
+                let bestScore = 0;
+
+                for (const div of allDivs) {
+                    if (!isScrollable(div)) continue;
+                    const links = div.querySelectorAll('a[href*="/maps/place/"]');
+                    const score = links.length;
+                    if (score > bestScore) {
+                        bestScore = score;
+                        best = div;
+                    }
+                }
+
+                if (best && bestScore >= 5) {
+                    return best;
+                }
+                return null;
+            }
+
             let el = sel ? document.querySelector(sel) : null;
             if (!isScrollable(el)) {
                 const candidates = Array.from(document.querySelectorAll(
                     'div[role="feed"], .m6QErb.DxyBCb.XiKgde, .m6QErb.DxyBCb'
                 ));
                 el = candidates.find(isScrollable) || el;
+            }
+
+            if (!isScrollable(el)) {
+                el = findBestFeedContainer();
             }
 
             if (!el) return 0;
