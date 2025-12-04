@@ -14,15 +14,16 @@ module.exports = {
     
     // Scroll settings
     // How long to wait between scroll steps (ms) – کمتر = سریع‌تر
-    SCROLL_STEP_MS: 150, // کاهش شدید برای سریع‌تر اسکرول
-    // چند بار ارتفاع ثابت بماند تا اگر end-of-list div نبود، حلقه را متوقف کنیم
-    SCROLL_STABILIZE_LOOPS: 2, // کاهش برای سریع‌تر توقف
-    // سقف مطلق تعداد اسکرول برای جلوگیری از لوپ بی‌نهایت (مقدار بالاتر پوشش بیشتر)
-    MAX_SCROLL_LOOPS: 50, // کاهش برای سریع‌تر
+    // مقدار را کمی بالاتر گرفتیم که فرصت لود آیتم‌های جدید هم باشد
+    SCROLL_STEP_MS: 220,
+    // چند بار ارتفاع ثابت بماند تا فقط lazy-load را تحریک کنیم (دیگر بر اساس این توقف نمی‌کنیم)
+    SCROLL_STABILIZE_LOOPS: 3,
+    // سقف مطلق تعداد اسکرول برای جلوگیری از لوپ بی‌نهایت (برای شهرهای شلوغ مثل تهران بالاتر بردیم)
+    MAX_SCROLL_LOOPS: 120,
 
     // Map panning settings (to cover more businesses by moving the viewport)
-    // کاهش برای سرعت بیشتر
-    PANNING_STEPS: 2, // کاهش از 4 به 2 برای سرعت بیشتر
+    // برای پوشش بهتر اطراف شهرهای بزرگ، کمی بیشترش کردیم
+    PANNING_STEPS: 4,
     // Pixel distance per pan move
     PANNING_PIXEL_DELTA: 300,
 
