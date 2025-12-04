@@ -417,13 +417,14 @@ async function smartScrollFeed(page, selector) {
         if (heightAfterWait === lastHeight) {
             consecutiveNoChange++;
             stableLoops++;
-            
-            // اگر ارتفاع چند بار پشت سر هم ثابت ماند، بررسی می‌کنیم
+
+            // اگر ارتفاع چند بار پشت سر هم ثابت ماند، فقط سعی می‌کنیم lazy-load را تحریک کنیم
+            // ولی دیگر فقط بر اساس ثابت ماندن ارتفاع، حلقه را قطع نمی‌کنیم.
             if (stableLoops >= config.SCROLL_STABILIZE_LOOPS) {
-                logger.debug(`Scroll height stabilized for ${stableLoops} loops. Checking for end-of-list...`);
-                
+                logger.debug(`Scroll height stabilized for ${stableLoops} loops. Checking for end-of-list and nudging scroll for lazy-load...`);
+
                 // یک بار دیگر چک می‌کنیم که آیا واقعاً به انتها رسیده‌ایم
-                const reachedEndByDiv = await page.evaluate((sel) => {
+                const reachedEndByDivAfterStabilize = await page.evaluate((sel) => {
                     const el = document.querySelector(sel);
                     if (!el) return false;
                     const txt = el.innerText || '';
@@ -431,29 +432,25 @@ async function smartScrollFeed(page, selector) {
                            txt.includes("به پایان لیست رسیدید") ||
                            txt.includes("لیست تمام شد");
                 }, selectors.SEARCH.END_OF_LIST_SELECTOR);
-                
-                if (!reachedEndByDiv) {
-                    // اگر end-of-list div نبود و ارتفاع هم تغییر نکرده، یک بار دیگر اسکرول می‌کنیم
-                    if (consecutiveNoChange < 5) {
-                        logger.debug(`No end-of-list div found yet. Height unchanged ${consecutiveNoChange} times. Trying one more scroll...`);
-                        // یک اسکرول کوچک اضافی برای trigger کردن lazy load
-                        await page.$eval(selector, el => {
-                            el.scrollTop = el.scrollHeight - 100; // Scroll up a bit
-                            setTimeout(() => {
-                                el.scrollTop = el.scrollHeight; // Then scroll to bottom
-                            }, 200);
-                        }).catch(() => {});
-                        await page.waitForTimeout(800); // کاهش برای سریع‌تر
-                        stableLoops = 0; // Reset و ادامه می‌دهیم
-                        consecutiveNoChange = 0;
-                    } else {
-                        logger.info('Height unchanged for too long, assuming end of list.');
-                        break;
-                    }
-                } else {
+
+                if (reachedEndByDivAfterStabilize) {
                     logger.info('End of list detected by end-of-list div after stabilization.');
                     break;
                 }
+
+                // اگر end-of-list div نبود، یک اسکرول کوچک اضافی برای trigger کردن lazy load
+                logger.debug(`No end-of-list div found yet. Height unchanged ${consecutiveNoChange} times. Doing a small up/down scroll to trigger lazy-load...`);
+                await page.$eval(selector, el => {
+                    el.scrollTop = Math.max(0, el.scrollHeight - 200); // کمی بالا
+                    setTimeout(() => {
+                        el.scrollTop = el.scrollHeight; // دوباره تا پایین
+                    }, 250);
+                }).catch(() => {});
+                await page.waitForTimeout(900);
+
+                // بعد از نودج، دوباره از صفر شروع می‌کنیم برای پایدار شدن
+                stableLoops = 0;
+                consecutiveNoChange = 0;
             }
         } else {
             stableLoops = 0;
